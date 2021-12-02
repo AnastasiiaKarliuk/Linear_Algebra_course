@@ -44,9 +44,6 @@ def line_intersection(line1, line2):
         return a[0] * b[1] - a[1] * b[0]
 
     div = det(xdiff, ydiff)
-    if div == 0:
-        raise Exception('lines do not intersect')
-
     d = (det(*line1), det(*line2))
     x = det(d, xdiff) / div
     y = det(d, ydiff) / div
@@ -60,10 +57,8 @@ def get_crossed_vec(start, curr_step, obstacles):
             line1 = np.array((vec1, vec2))
             crossed = is_segments_intersect(line1, (start, curr_step))
             if crossed:
-                l1 = vec1 - vec2
-                l2 = start - curr_step
                 l1 = line_intersection((vec1, vec2), (start, curr_step))
-                dist = calculateDistance(x1=l1[0], y1=l1[1], x2=l2[0], y2=l2[1])
+                dist = calculateDistance(x1=l1[0], y1=l1[1], x2=start[0], y2=start[1])
                 crossed_vec.append(line1)
                 dists.append(dist)
     if len(crossed_vec) > 0:
@@ -83,7 +78,7 @@ def get_new_direction(crossed_vec, pure_vector):
     a, b = crossed_vec
     angleAB = get_angle(pure_vector, b - a)
     angleBA = get_angle(pure_vector, a - b)
-    new_dir = b - a if (angleAB < angleBA and ((b - a) > 0).any()) else a - b
+    new_dir = b - a if (angleAB < angleBA and np.equal(b - a > 0, pure_vector > 0).any()) else a - b
     new_dir_normed = new_dir / np.linalg.norm(new_dir)
     return new_dir_normed
 
@@ -101,29 +96,42 @@ def get_next_step(finish, curr_start, obstacles):
     next_step = curr_start + pure_vector_normed
     crossed_vec = get_crossed_vec(curr_start, next_step, obstacles)
 
-    if len(crossed_vec):
+    count_crossed = 0
+    while len(crossed_vec) > 0 and count_crossed <= 5:
         new_dir_normed = get_new_direction(crossed_vec, pure_vector)
-        next_stp = curr_start + new_dir_normed
-    else:
-        next_stp = curr_start + pure_vector_normed
+        next_step = curr_start + new_dir_normed
+        crossed_vec = get_crossed_vec(curr_start, next_step, obstacles)
+        count_crossed += 1
 
-    curr_start = get_the_nearest_point(curr_start, finish, next_stp)
+    curr_start = get_the_nearest_point(curr_start, finish, next_step)
     return curr_start
 
 
-def plot_polyline(polyline: list, obstacles: list):
-    plt.figure(figsize=(6, 6))
+def plot_path(obstacles, my_path):
+    plt.figure(figsize=(15, 9))
     plt.axis('equal')
 
-    if len(obstacles) > 0:
-        for ob in obstacles:
-            ob = list(ob)
-            ob.append(ob[0])
-            x, y = zip(*ob)
-            plt.plot(x, y, c='red')
+    for ob in obstacles:
+        ob = list(ob)
+        ob.append(ob[0])
+        x, y = zip(*ob)
+        plt.plot(x, y, c='red')
 
-    x, y = zip(*polyline)
+    x, y = zip(*my_path)
     plt.scatter(x, y)
     plt.plot(x, y)
     plt.grid()
     plt.show()
+
+
+def get_centroid(obstacl):
+    return np.array(obstacl).mean(axis=0)
+
+
+def widther_obstacle(obstacle, width):
+    centroid_test = get_centroid(obstacle)
+    directions = obstacle-centroid_test
+    normed_directions = directions/np.linalg.norm(directions, axis=1)[:, np.newaxis]
+    distances = width + np.sqrt(np.sum(directions**2, axis=1))
+    new_obstacle = centroid_test + normed_directions*distances[:, np.newaxis]
+    return new_obstacle

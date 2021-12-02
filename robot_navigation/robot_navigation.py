@@ -15,16 +15,19 @@ def find_path(start, finish, obstacles=None):
     print("Finish point:", finish)
     print("Obstacles:", obstacles)
 
+    robot_width = 0.04
+    obstacles_new = np.array([widther_obstacle(obs, robot_width / 2) for obs in obstacles])
+
     curr_start = start
     polyline = [curr_start]
+    max_iteration = 1_000
 
-    max_iteration = 40
     while max_iteration >= 0 and (curr_start != finish).all():
-        curr_start = get_next_step(finish, curr_start, obstacles)
+        curr_start = get_next_step(finish, curr_start, obstacles_new)
         polyline.append(curr_start)
         max_iteration -= 1
 
-    plot_polyline(polyline, obstacles)
+    plot_path(obstacles, polyline)
     return polyline
 
 
